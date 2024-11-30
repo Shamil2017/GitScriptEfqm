@@ -68,6 +68,22 @@ def reset_knowledge():
         proxy_client.beta.vector_stores.files.delete(vector_store_id=store_id, file_id=file.id)
         proxy_client.files.delete(file.id)
 
+def delete_existing_assistant():
+    assistant_id = get_assistant_id()
+    if assistant_id:
+        try:
+            # Удаляем ассистента с текущим assistant_id
+            proxy_client.beta.assistants.delete(assistant_id=assistant_id)
+            print(f"Ассистент с ID {assistant_id} удалён.")
+            
+            # Удаляем assistant_id из конфигурации
+            config["assistant_id"] = None
+            save_config()
+        except Exception as e:
+            print(f"Ошибка при удалении ассистента: {e}")
+    else:
+        print("Ассистент не существует, удаление не требуется.")
+
 def get_thread_id(chat_id: str):
     if "threads" not in config:
         config["threads"] = {}
@@ -77,6 +93,13 @@ def get_thread_id(chat_id: str):
         save_config()
     return config["threads"][chat_id]
 
+def list_knowledge_files():
+    store_id = get_vector_store_id()
+    files = proxy_client.beta.vector_stores.files.list(vector_store_id=store_id)
+    print("Список файлов в базе знаний:")
+    for file in files:
+        print(f"ID: {file.id}, Имя файла: {file.filename}")
+        
 def process_message(chat_id: str, message: str) -> List[str]:
     assistant_id = get_assistant_id()
     thread_id = get_thread_id(chat_id)
@@ -91,10 +114,35 @@ def process_message(chat_id: str, message: str) -> List[str]:
                     if block.type == "text":
                         answer.append(block.text.value)
     return answer
-
+    
+def prepare_request(question, variants):
+    """
+    Формирует текст запроса для ассистента, объединяя вопрос и варианты ответов с баллами.
+    """
+    request = question + "\n\nВарианты ответов и баллы:\n"
+    for idx, variant in enumerate(variants, start=1):
+        request += f"{idx}. {variant['text']}\t{variant['score']}\n"
+    request += (
+        "\nИсходя из паспорта кафедры (загруженного документа) и проставленных баллов, "
+        "найди несоответствия баллов по каждому варианту ответов. Внимательно проанализируй этот документ.\n"
+        "По каждому варианту ответов заведующий кафедры выставляет баллы от 0 до 10:\n"
+        "0 - не поддерживается, 10 - максимально активно поддерживается.\n"
+        "Дай ответ на русском языке в формате JSON, содержащий следующие поля:\n"
+        "1. 'Вариант ответа' - текст варианта ответа.\n"
+        "2. 'Проставленный балл' - исходный балл из анкеты.\n"
+        "3. 'Предложенный балл' - балл, основанный на данных из паспорта кафедры.\n"
+        "4. 'Обоснование краткое' - краткий комментарий.\n"
+        "5. 'Обоснование подробное' - развернутый анализ.\n"
+        "6. 'Несоответствие' - 0, если существенных несоответствий нет, или 1, если есть.\n"
+    )
+    return request
+    
 if __name__ == '__main__':
     print("Инициализация процесса...")
-
+    print("Проверка и удаление существующего ассистента...")
+    delete_existing_assistant()
+    time.sleep(10)  # Пауза 10 секунд
+    
     # Пример использования функций
     print("Создание ассистента...")
     create_assistant(
@@ -111,11 +159,31 @@ if __name__ == '__main__':
     print("Документ добавлен!")
     time.sleep(10)  # Пауза 10 секунд
     
+    # Формирование запроса
+    # Переменная, хранящая вопрос
+    question = "Есть такой вопрос анкеты, который заполняет заведующего кафедры: В чем заключается и какой степени реализуется лидерство кафедры в образовании?"
+    variants = [
+        {"text": "Довузовская подготовка", "score": 8},
+        {"text": "Разработка и написание учебников, учебно-методической литературы", "score": 8},
+        {"text": "Программы доп.проф.образования", "score": 4},
+        {"text": "Развитие ПОУ", "score": 4},
+        {"text": "Разработка новых ОП и стандартов", "score": 8},
+        {"text": "Расширение профилей подготовки", "score": 4},
+        {"text": "Международные образовательные программы (двойные дипломы и т.д.)", "score": 2},
+    ]
+    
+    print("Формирование текста запроса...")
+    request = prepare_request(question, variants)
+    print(request)
+    
     print("Отправка вопроса ассистенту...")
-    responses = process_message(chat_id="12345", message="В чем заключается и какой степени реализуется лидерство кафедры в образовании?")
-    print("Ответ ассистента:")
-    for response in responses:
-        print(response)
+    try:
+        responses = process_message(chat_id="12345", message=request)
+        print("Ответ ассистента:")
+        for response in responses:
+            print(response)
+    except Exception as e:
+        print(f"Ошибка при обработке запроса: {e}")
     time.sleep(10)  # Пауза 10 секунд
 
     print("Сброс базы знаний...")
