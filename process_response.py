@@ -12,7 +12,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_FILE = os.path.join(BASE_DIR, "question_config.json")
 OUTPUT_FOLDER = os.path.join(BASE_DIR, "results")
 INPUT_FILE = os.path.join(BASE_DIR, "input09_12_24.json")
-department_name = "РТС"  # Название кафедры
+department_name = "АСУТП"  # Название кафедры
 option_file = os.path.join(BASE_DIR, "option.txt")
 
 # Убедимся, что папка для результатов существует
@@ -60,7 +60,7 @@ def transform_result_structure(result_structure: Dict, response: str, question: 
     if os.path.exists(option_file):
         with open(option_file, "r", encoding="utf-8") as file:
             option_ids = file.readlines()  # Считываем все строки в список
-        os.remove(option_file)  # Удаляем файл после чтения
+        #os.remove(option_file)  # Удаляем файл после чтения
     else:
         option_ids = []  # Если файл отсутствует, создаем пустой список
     

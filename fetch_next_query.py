@@ -7,7 +7,7 @@ import pyperclip
 CONFIG_FILE = "C:/efqm/Anketi chatGPT/question_config.json"
 INPUT_FILE = "C:/efqm/Anketi chatGPT/input09_12_24.json"
 PASSPORT_FILE = "C:/efqm/Anketi chatGPT/example.txt"
-department_name = "РТС"  # Название кафедры
+department_name = "АСУТП"  # Название кафедры
 option_file = "C:/efqm/Anketi chatGPT/option.txt"
 
     
