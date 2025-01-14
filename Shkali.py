@@ -31,7 +31,7 @@
 #Ц27	РИД
 
 
-# In[2]:
+# In[3]:
 
 
 import pyodbc 
@@ -43,7 +43,7 @@ import math
     
 
 
-# In[3]:
+# In[5]:
 
 
 server = 'KPI-MONITOR'
@@ -53,7 +53,7 @@ password = 'mpeiR@dar'
 current_date = datetime.datetime.now().date()
 
 
-# In[4]:
+# In[7]:
 
 
 def sorted_column_to_string(df, column_name):
@@ -69,7 +69,7 @@ def sorted_column_to_string(df, column_name):
     return "; ".join(map(str, sorted_values.tolist()))  # Преобразуем в строку
 
 
-# In[5]:
+# In[9]:
 
 
 def analyze_distribution(df, column_name):
@@ -114,7 +114,7 @@ def analyze_distribution(df, column_name):
 
 
 
-# In[6]:
+# In[11]:
 
 
 def build_scaleOld(percentages, num_grades=10, min_score=50, max_score=80, scale_type='linear'):
@@ -180,7 +180,7 @@ def build_scaleOld(percentages, num_grades=10, min_score=50, max_score=80, scale
 
 
 
-# In[357]:
+# In[13]:
 
 
 def build_scale_quartiles(percentages, num_sections=4, min_score=50, max_score=80):
@@ -231,7 +231,7 @@ def build_scale_quartiles(percentages, num_sections=4, min_score=50, max_score=8
     return scale_df
 
 
-# In[320]:
+# In[15]:
 
 
 def build_scale(percentages, num_grades=10, min_score=10, max_score=100, scale_type='linear'):
@@ -314,7 +314,7 @@ def build_scale(percentages, num_grades=10, min_score=10, max_score=100, scale_t
     return scale_df
 
 
-# In[145]:
+# In[17]:
 
 
 def format_scale0(scale_df, scale_name):
@@ -374,7 +374,7 @@ def format_scale0(scale_df, scale_name):
 
 
 
-# In[146]:
+# In[19]:
 
 
 def format_scale(scale_df, scale_name):
@@ -403,13 +403,13 @@ def format_scale(scale_df, scale_name):
         if " – " in range_str:
             lower, upper = map(lambda x: float(x.strip('%')), range_str.split(" – "))
             if lower != upper:  # Пропускаем одинаковые нижнюю и верхнюю границы
-                formatted_scale.append((upper, score))
+                formatted_scale.append((round(upper), score))
         elif "> " in range_str:
             lower = float(range_str.split("> ")[1].strip('%'))
-            formatted_scale.append((lower, score))  # Больше, чем нижняя граница
+            formatted_scale.append((round(lower), score))  # Больше, чем нижняя граница
         elif "≤ " in range_str:
             upper = float(range_str.split("≤ ")[1].strip('%'))
-            formatted_scale.append((upper, score))  # Меньше или равно верхней границе
+            formatted_scale.append((round(upper), score))  # Меньше или равно верхней границе
 
     # Удаляем дубликаты значений с одинаковой границей и сортируем
     filtered_scale = []
@@ -422,22 +422,19 @@ def format_scale(scale_df, scale_name):
     # Форматируем вывод с использованием имени переменной
     formatted_output = f"{scale_name} = [\n"
     for i, (threshold, score) in enumerate(filtered_scale):
-        if isinstance(score, float):  # Проверяем тип данных
-            score_str = f"{int(score) if score.is_integer() else score:.6f}"
-        else:
-            score_str = str(score)  # Для целых чисел
+        score = round(score)  # Округление до целого
         if i == 0:
-            formatted_output += f"    ({threshold:.2f}, {score_str}),  # Если значение больше {threshold:.2f}%, то {score} баллов\n"
+            formatted_output += f"    ({threshold}, {score}),  # Если значение больше {threshold}%, то {score} баллов\n"
         else:
-            formatted_output += f"    ({threshold:.2f}, {score_str}),  # Если значение в диапазоне {threshold:.2f}% – {filtered_scale[i-1][0]:.2f}%, то {score} баллов\n"
+            formatted_output += f"    ({threshold}, {score}),  # Если значение в диапазоне {threshold}% – {filtered_scale[i-1][0]}%, то {score} баллов\n"
     
     # Добавляем последнее значение
-    formatted_output += f"    (0, 10)        # Если значение меньше или равно {filtered_scale[-1][0]:.2f}%, то 10 баллов\n"
+    formatted_output += f"    (0, 10)        # Если значение меньше или равно {filtered_scale[-1][0]}%, то 10 баллов\n"
     formatted_output += "]"
     return formatted_output
 
 
-# In[166]:
+# In[21]:
 
 
 def adjust_scores0(scale_df, min_score=10, max_score=80):
@@ -483,7 +480,7 @@ def adjust_scores0(scale_df, min_score=10, max_score=80):
     return scale_df
 
 
-# In[266]:
+# In[23]:
 
 
 def adjust_scores(scale_df, min_score=10, max_score=80):
@@ -555,13 +552,38 @@ def adjust_scores(scale_df, min_score=10, max_score=80):
     return scale_df
 
 
-# In[ ]:
+# In[25]:
 
 
+def plot_scores(scale_df):
+    """
+    Строит график зависимости баллов от процента выполнения плана.
+
+    :param scale_df: DataFrame с колонками "Процент выполнения плана (%)" и "Баллы за выполнение"
+    """
+    # Преобразуем диапазоны процентов в значения для оси X
+    x_values = []
+    for percent_range in scale_df['Процент выполнения плана (%)']:
+        if '≤' in percent_range:
+            x_values.append(float(percent_range.split('≤')[1].strip('% ')))
+        elif '>' in percent_range:
+            x_values.append(float(percent_range.split('>')[1].strip('% ')))
+        else:
+            bounds = percent_range.split('–')
+            x_values.append((float(bounds[0].strip('% ')) + float(bounds[1].strip('% '))) / 2)
+
+    # Строим график
+    plt.figure(figsize=(10, 6))
+    plt.plot(x_values, scale_df['Баллы за выполнение'], marker='o', linestyle='-', label='Баллы за выполнение')
+    plt.title('Зависимость баллов от процента выполнения плана')
+    plt.xlabel('Процент выполнения плана (%)')
+    plt.ylabel('Баллы за выполнение')
+    plt.grid(True)
+    plt.legend()
+    plt.show()
 
 
-
-# In[267]:
+# In[27]:
 
 
 # Сохраняем DataFrame в CSV файл
@@ -571,42 +593,41 @@ def adjust_scores(scale_df, min_score=10, max_score=80):
 df = pd.DataFrame()
 
 # Загружаем данные из CSV файла
-df = pd.read_csv('dannie.csv')
+df = pd.read_csv('dannie24.csv')
 
 
-# In[268]:
+# In[29]:
 
 
 df
 
 
-# In[269]:
+# In[31]:
 
 
 # Отфильтровать DataFrame, оставив только ненулевые значения в столбце sredFact
 df_nonzero = df[df['EGEVip'] >= 0.002]
 
 
-# In[270]:
+# In[ ]:
 
 
-analyze_distribution(df_nonzero, 'EGEVip')
 
 
-# In[271]:
+
+# In[ ]:
 
 
-result = sorted_column_to_string(df_nonzero, 'EGEVip')
-print(result)
 
 
-# In[272]:
+
+# In[33]:
 
 
 #sredProcVip
 
 
-# In[273]:
+# In[35]:
 
 
 # Пример использования функции с вариантом №1 и 4 секциями (квартилями)
@@ -620,163 +641,10 @@ print(output)
 
 
 
-# In[231]:
-
-
-def extract_upper_bound(range_str):
-        """
-        Извлекает верхнюю границу диапазона из строки формата:
-        '≤ 50.00%', '50.00% – 100.00%', '> 100.00%'
-        """
-        if '≤' in range_str:
-            return float(range_str.split('≤')[1].strip('% '))
-        elif '>' in range_str:
-            return float(range_str.split('>')[1].strip('% '))
-        else:  # Формат 'x% – y%'
-            return float(range_str.split('–')[1].strip('% '))
-
-def extract_lower_bound(range_str):
-        """
-        Извлекает нижнюю границу диапазона из строки формата:
-        '≤ 50.00%', '50.00% – 100.00%', '> 100.00%'
-        """
-        if '≤' in range_str or '>' in range_str:
-            return 0  # Для первых и последних интервалов
-        else:
-            return float(range_str.split('–')[0].strip('% '))
-
-
-# In[240]:
+# In[37]:
 
 
 scale_variant1_quartiles
-
-
-# In[241]:
-
-
-scale_df = scale_variant1_quartiles.copy()
-
-
-# In[242]:
-
-
-scale_df
-
-
-# In[243]:
-
-
-scale_df['lower_bound'] = scale_df['Процент выполнения плана (%)'].apply(extract_lower_bound)
-scale_df['upper_bound'] = scale_df['Процент выполнения плана (%)'].apply(extract_upper_bound)
-
-
-# In[244]:
-
-
-scale_df['lower_bound'] = scale_df['lower_bound'].astype(float)
-scale_df['upper_bound'] = scale_df['upper_bound'].astype(float)
-
-
-# In[245]:
-
-
-scale_df
-
-
-# In[246]:
-
-
-containing_100 = scale_df[(scale_df['lower_bound'] <= 100) & (scale_df['upper_bound'] >= 100)].index
-
-
-# In[247]:
-
-
-containing_100_index = containing_100.min()  # Берем минимальный индекс
-
-
-# In[248]:
-
-
-containing_100_index
-
-
-# In[249]:
-
-
-below_100_indices = scale_df.loc[:containing_100_index].index
-
-
-# In[250]:
-
-
-above_100_indices = scale_df.loc[containing_100_index + 1:].index
-
-
-# In[252]:
-
-
-below_100_indices
-
-
-# In[253]:
-
-
-above_100_indices
-
-
-# In[261]:
-
-
-max_score = 80
-# Генерация равномерных баллов для интервалов ниже 100%
-if len(below_100_indices) > 1:
-    below_100_scores = np.linspace(10, 50, len(below_100_indices)).tolist()
-else:
-    below_100_scores = [50]
-
-# Генерация равномерных баллов для интервалов выше 100%
-if len(above_100_indices) > 0:
-    above_100_scores = np.linspace(50 + (max_score - 50) / len(above_100_indices), max_score, len(above_100_indices)).tolist()
-else:
-    above_100_scores = []
-
-
-# In[263]:
-
-
-# Обновляем баллы в DataFrame
-scale_df.loc[below_100_indices, 'Баллы за выполнение'] = below_100_scores
-scale_df.loc[containing_100_index, 'Баллы за выполнение'] = 50  # Устанавливаем 50 баллов для 100%
-scale_df.loc[above_100_indices, 'Баллы за выполнение'] = above_100_scores
-
-# Удаляем временные столбцы
-scale_df.drop(['lower_bound', 'upper_bound'], axis=1, inplace=True)
-
-
-# In[256]:
-
-
-below_100_scores
-
-
-# In[262]:
-
-
-above_100_scores
-
-
-# In[259]:
-
-
-above_100_indices
-
-
-# In[264]:
-
-
-scale_df
 
 
 # In[ ]:
@@ -785,7 +653,13 @@ scale_df
 
 
 
-# In[274]:
+# In[40]:
+
+
+# Начало расчета
+
+
+# In[42]:
 
 
 adjusted_scale_df = adjust_scores(scale_variant1_quartiles, min_score=10, max_score=80)
@@ -794,326 +668,269 @@ formatted_scale = format_scale(adjusted_scale_df, "scaleEgeVip")
 print(formatted_scale)
 
 
-# In[275]:
+# In[44]:
+
+
+plot_scores(adjusted_scale_df)
+
+
+# In[132]:
 
 
 fields = df.columns.tolist()
 print(fields)
 
 
-# In[276]:
+# In[ ]:
+
+
+
+
+
+# In[46]:
 
 
 #trudProcVip
 
 
-# In[277]:
+# In[48]:
 
 
 df_nonzero = df[df['TrudoustroistvoVip'] >= 0.002]
 
 
-# In[61]:
+# In[50]:
 
 
 analyze_distribution(df_nonzero, 'TrudoustroistvoVip')
 
 
-# In[62]:
+# In[52]:
 
 
 result = sorted_column_to_string(df_nonzero, 'TrudoustroistvoVip')
 print(result)
 
 
-# In[ ]:
+# In[54]:
 
 
 #ridProcVip
 
 
-# In[321]:
+# In[56]:
 
 
 df_nonzero = df[df['RIDVip'] >= 0.002]
 
 
-# In[322]:
+# In[58]:
 
 
 result = sorted_column_to_string(df_nonzero, 'RIDVip')
 print(result)
 
 
-# In[323]:
+# In[60]:
+
+
+# Function to plot the distribution
+# Function to plot the point distribution
+# Function to plot the point distribution as a line chart
+def plot_point_distribution(data):
+    plt.figure(figsize=(10, 6))
+
+    # Generate indices for data
+    indices = range(1, len(data) + 1)
+
+    # Plot line chart
+    plt.plot(indices, data, '-o', label='Значения', markersize=5)
+
+    # Add title and labels
+    plt.title("Зависимость значений от индекса", fontsize=16)
+    plt.xlabel("Индекс", fontsize=14)
+    plt.ylabel("Значение", fontsize=14)
+
+    # Add legend
+    plt.legend()
+
+    # Grid for better readability
+    plt.grid(axis='both', linestyle='--', alpha=0.7)
+
+    # Show plot
+    plt.show()
+
+
+# In[245]:
+
+
+result = [float(x.strip()) for x in result.split(";")]
+
+
+# In[247]:
+
+
+data_sorted = np.sort(result)
+
+
+# In[249]:
+
+
+plot_point_distribution(data_sorted)
+
+
+# In[211]:
+
+
+# Min, mid, and max values
+min_value = min(data_sorted)
+max_value = max(data_sorted)
+mid_value = 100  # Value corresponding to 50 points
+
+# Functions to calculate scores
+
+def calculate_log_scores(data, min_value, max_value):
+    scores = []
+    log_min = np.log(min_value)
+    log_max = np.log(max_value)
+    for value in data:
+        log_value = np.log(value)
+        score = 10 + (log_value - log_min) / (log_max - log_min) * (100 - 10)
+        scores.append(score)
+    return scores
+
+def calculate_exp_scores(data, min_value, max_value):
+    scores = []
+    for value in data:
+        exp_value = np.exp(value - min_value)
+        exp_min = np.exp(min_value - min_value)
+        exp_max = np.exp(max_value - min_value)
+        score = 10 + (exp_value - exp_min) / (exp_max - exp_min) * (100 - 10)
+        scores.append(score)
+    return scores
+
+def calculate_quad_scores(data, min_value, max_value):
+    scores = []
+    for value in data:
+        quad_value = (value - min_value) ** 2
+        quad_max = (max_value - min_value) ** 2
+        score = 10 + quad_value / quad_max * (100 - 10)
+        scores.append(score)
+    return scores
+
+# Calculate scores for each method
+log_scores = calculate_log_scores(data_sorted, min_value, max_value)
+exp_scores = calculate_exp_scores(data_sorted, min_value, max_value)
+quad_scores = calculate_quad_scores(data_sorted, min_value, max_value)
+
+# Function to plot the point distribution with scores
+def plot_point_distribution_with_scores(data, log_scores, exp_scores, quad_scores):
+    plt.figure(figsize=(12, 8))
+
+    # Generate indices for data
+    indices = range(1, len(data) + 1)
+
+    # Plot the original data
+    plt.plot(indices, data, '-o', label='Значения', markersize=5, color='blue')
+
+    # Plot scores with different colors
+    plt.scatter(indices, log_scores, label='Логарифмическая функция', color='green', alpha=0.7)
+    plt.scatter(indices, exp_scores, label='Экспоненциальная функция', color='orange', alpha=0.7)
+    plt.scatter(indices, quad_scores, label='Квадратичная функция', color='red', alpha=0.7)
+
+    # Add title and labels
+    plt.title("Зависимость значений и баллов от индекса", fontsize=16)
+    plt.xlabel("Индекс", fontsize=14)
+    plt.ylabel("Значение / Баллы", fontsize=14)
+
+    # Add legend
+    plt.legend()
+
+    # Grid for better readability
+    plt.grid(axis='both', linestyle='--', alpha=0.7)
+
+    # Show plot
+    plt.show()
+
+# Call the function to plot
+plot_point_distribution_with_scores(data_sorted, log_scores, exp_scores, quad_scores)
+
+
+# In[213]:
+
+
+plot_point_distribution(log_scores)
+
+
+# In[ ]:
+
+
+
+
+
+# In[62]:
 
 
 analyze_distribution(df_nonzero, 'RIDVip')
 
 
-# In[325]:
+# In[64]:
 
 
 #build_scale(percentages, num_grades=10, min_score=50, max_score=80, scale_type='linear')
-scale_variant3 = build_scale(df_nonzero['RIDVip'],num_grades=20, min_score=10, max_score=90, scale_type='log')
-adjusted_scale_df = adjust_scores(scale_variant3, min_score=10, max_score=90)
+scale_variant3 = build_scale(df_nonzero['RIDVip'],num_grades=40, min_score=10, max_score=100, scale_type='log')
+adjusted_scale_df = adjust_scores(scale_variant3, min_score=10, max_score=100)
 print(adjusted_scale_df)
 formatted_scale = format_scale(adjusted_scale_df,"scaleRidVip")
 print(formatted_scale)
 
 
-# In[308]:
+# In[66]:
 
 
-#def build_scale(percentages, num_grades=10, min_score=10, max_score=100, scale_type='linear'):
-#    """
-#    Функция для построения шкалы присвоения баллов на основе распределения данных и заданных критериев,
-#    с удалением одинаковых интервалов.
+plot_scores(adjusted_scale_df)
 
-#    :param percentages: список процентных значений выполнения плана
-#    :param num_grades: количество градаций шкалы (по умолчанию 10)
-#    :param min_score: минимальный балл (по умолчанию 10)
-#    :param max_score: максимальный балл (по умолчанию 100)
-#    :param scale_type: тип масштабирования ('linear' или 'log')
-#    :return: DataFrame с диапазонами процентов и соответствующими баллами
 
-df_unique = list(set(df_nonzero['RIDVip'].tolist()))
-# Преобразуем список в numpy array
-data = np.array(df_unique)
-
-
-# Проверяем максимальное значение
-max_percent = max(data)
-
-# Обрабатываем данные в зависимости от выбранного масштабирования
-data = np.log(data + 1)  # Логарифмическое масштабирование
-    
- 
-
-  
-
-
-# In[309]:
-
-
-max_percent
-
-
-# In[310]:
-
-
-# Сортируем данные
-data_sorted = np.sort(data)
-data_sorted
-
-
-# In[311]:
-
-
-num_grades = 20
-
-
-# In[312]:
-
-
-# Разделяем данные на перцентили
-percentiles = np.linspace(0, 100, num_grades + 1)  # Делим на num_grades диапазонов
-percentiles
-
-
-# In[313]:
-
-
-bins = np.percentile(data_sorted, percentiles)
-bins
-
-
-# In[317]:
-
-
-# Создаем диапазоны процентов
-ranges = []
-scores = []
-min_score = 10
-max_score = 90
-for i in range(len(bins) - 1):
-        lower = bins[i]
-        upper = bins[i + 1]
-        lower_display = np.exp(lower) - 1
-        upper_display = np.exp(upper) - 1
-        if i == 0:
-            range_str = f"≤ {upper_display:.2f}%"
-        elif i == len(bins) - 2:
-            range_str = f"> {lower_display:.2f}%"
-        else:
-            range_str = f"{lower_display:.2f}% – {upper_display:.2f}%"
-        # Пропускаем повторяющиеся диапазоны
-        #if ranges and ranges[-1][1] == upper_display:
-        #    continue
-
-        ranges.append((lower_display, upper_display, range_str))
-        # Присваиваем баллы
-        if upper <= 100:  # Невыполнение плана (до 100%)
-            score = min_score + (50 - min_score) * (upper / 100)
-        else:  # От 100% равномерное распределение
-            relative_position = (upper - 100) / (max_percent - 100)
-            score = 50 + (max_score - 50) * relative_position
-
-        scores.append(round(score))  # Округляем до целого
-
-
-# In[318]:
-
-
-ranges
-
-
-# In[319]:
-
-
-scores
-
-
-# In[ ]:
-
-
-# Создаем диапазоны процентов
-ranges = []
-scores = []
-for i in range(len(bins) - 1):
-    lower = bins[i]
-    upper = bins[i + 1]
-
-    # Преобразуем границы обратно, если использовали логарифмическое масштабирование
-    if scale_type == 'log':
-        lower_display = np.exp(lower) - 1
-        upper_display = np.exp(upper) - 1
-    else:
-        lower_display = lower
-        upper_display = upper
-
-    if i == 0:
-        range_str = f"≤ {upper_display:.2f}%"
-    elif i == len(bins) - 2:
-        range_str = f"> {lower_display:.2f}%"
-    else:
-        range_str = f"{lower_display:.2f}% – {upper_display:.2f}%"
-
-    # Пропускаем повторяющиеся диапазоны
-    if ranges and ranges[-1][1] == upper_display:
-        continue
-
-    ranges.append((lower_display, upper_display, range_str))
-
-    # Присваиваем баллы
-    if upper <= 100:  # Невыполнение плана (до 100%)
-        score = min_score + (50 - min_score) * (upper / 100)
-    else:  # От 100% равномерное распределение
-        relative_position = (upper - 100) / (max_percent - 100)
-        score = 50 + (max_score - 50) * relative_position
-
-    scores.append(round(score))  # Округляем до целого
-
-# Создаем DataFrame для шкалы
-scale_df = pd.DataFrame({
-    'Процент выполнения плана (%)': [r[2] for r in ranges],
-    'Баллы за выполнение': scores
-})
-
-return scale_df
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[139]:
-
-
-scale_variant3 = build_scale(df_nonzero['RIDVip'],num_grades=10, min_score=10, max_score=80, scale_type='log')
-
-
-# In[140]:
-
-
-scale_variant3
-
-
-# In[184]:
-
-
-print("Процент выполнения плана (%); Баллы за выполнение;") 
-# Форматирование вывода
-output = "\n".join(f"{row['Процент выполнения плана (%)']}; {row['Баллы за выполнение']};" for _, row in scale_variant3.iterrows())
-print(output)
-
-
-# In[326]:
+# In[265]:
 
 
 #PublNauchMaterialVip
 
 
-# In[327]:
+# In[68]:
 
 
 result = sorted_column_to_string(df, 'PublNauchMaterialVip')
 print(result)
 
 
-# In[328]:
+# In[70]:
 
 
 # Отфильтровать DataFrame, оставив только ненулевые значения в столбце sredFact
 df_nonzero = df[df['PublNauchMaterialVip'] >= 0.002]
 
 
-# In[329]:
+# In[72]:
 
 
 analyze_distribution(df_nonzero, 'PublNauchMaterialVip')
 
 
-# In[330]:
+# In[74]:
 
 
-scale_variant3 = build_scale(df_nonzero['PublNauchMaterialVip'],num_grades=20, min_score=10, max_score=90, scale_type='log')
-adjusted_scale_df = adjust_scores(scale_variant3, min_score=10, max_score=90)
+scale_variant3 = build_scale(df_nonzero['PublNauchMaterialVip'],num_grades=40, min_score=10, max_score=100, scale_type='log')
+adjusted_scale_df = adjust_scores(scale_variant3, min_score=10, max_score=100)
 print(adjusted_scale_df)
 formatted_scale = format_scale(adjusted_scale_df, "scalePublNauchMaterialVip")
 print(formatted_scale)
 
 
-# In[ ]:
+# In[76]:
 
 
-
+plot_scores(adjusted_scale_df)
 
 
 # In[ ]:
@@ -1122,7 +939,7 @@ print(formatted_scale)
 AkadMob
 
 
-# In[331]:
+# In[78]:
 
 
 # Отфильтровать DataFrame, оставив только ненулевые значения в столбце sredFact
@@ -1133,24 +950,30 @@ df_nonzero = df[df['AkadMobVip'] >= 0.002]
 analyze_distribution(df_nonzero, 'AkadMobVip')
 
 
-# In[332]:
+# In[80]:
 
 
-scale_variant3 = build_scale(df_nonzero['AkadMobVip'],num_grades=20, min_score=10, max_score=90, scale_type='log')
+scale_variant3 = build_scale(df_nonzero['AkadMobVip'],num_grades=40, min_score=10, max_score=100, scale_type='log')
 print(scale_variant3)
 
 
-# In[333]:
+# In[82]:
 
 
-scale_variant3 = build_scale(df_nonzero['AkadMobVip'],num_grades=20, min_score=10, max_score=90, scale_type='log')
+scale_variant3 = build_scale(df_nonzero['AkadMobVip'],num_grades=40, min_score=10, max_score=100, scale_type='log')
 adjusted_scale_df = adjust_scores(scale_variant3, min_score=10, max_score=90)
 print(adjusted_scale_df)
 formatted_scale = format_scale(adjusted_scale_df, "scaleAkadMobVip")
 print(formatted_scale)
 
 
-# In[334]:
+# In[84]:
+
+
+plot_scores(adjusted_scale_df)
+
+
+# In[86]:
 
 
 # DolInostrVip
@@ -1161,24 +984,30 @@ df_nonzero = df[df['DolInostrVip'] >= 0.002]
 analyze_distribution(df_nonzero, 'DolInostrVip')
 
 
-# In[335]:
+# In[90]:
 
 
-scale_variant3 = build_scale(df_nonzero['DolInostrVip'],num_grades=10, min_score=10, max_score=80, scale_type='log')
+scale_variant3 = build_scale(df_nonzero['DolInostrVip'],num_grades=40, min_score=10, max_score=100, scale_type='log')
 print(scale_variant3)
 
 
-# In[336]:
+# In[92]:
 
 
-scale_variant3 = build_scale(df_nonzero['DolInostrVip'],num_grades=10, min_score=10, max_score=80, scale_type='log')
-adjusted_scale_df = adjust_scores(scale_variant3, min_score=10, max_score=80)
+scale_variant3 = build_scale(df_nonzero['DolInostrVip'],num_grades=40, min_score=10, max_score=100, scale_type='log')
+adjusted_scale_df = adjust_scores(scale_variant3, min_score=10, max_score=100)
 print(adjusted_scale_df)
 formatted_scale = format_scale(adjusted_scale_df, "scaleDolInostrVip")
 print(formatted_scale)
 
 
-# In[337]:
+# In[94]:
+
+
+plot_scores(adjusted_scale_df)
+
+
+# In[96]:
 
 
 #DolMag
@@ -1189,24 +1018,24 @@ df_nonzero = df[df['DolMagVip'] >= 0.002]
 analyze_distribution(df_nonzero, 'DolMagVip')
 
 
-# In[338]:
+# In[104]:
 
 
-scale_variant3 = build_scale(df_nonzero['DolMagVip'],num_grades=10, min_score=10, max_score=80, scale_type='log')
+scale_variant3 = build_scale(df_nonzero['DolMagVip'],num_grades=20, min_score=10, max_score=90, scale_type='log')
 print(scale_variant3)
 
 
-# In[339]:
+# In[106]:
 
 
-scale_variant3 = build_scale(df_nonzero['DolMagVip'],num_grades=10, min_score=10, max_score=80, scale_type='log')
-adjusted_scale_df = adjust_scores(scale_variant3, min_score=10, max_score=80)
+scale_variant3 = build_scale(df_nonzero['DolMagVip'],num_grades=10, min_score=10, max_score=90, scale_type='log')
+adjusted_scale_df = adjust_scores(scale_variant3, min_score=10, max_score=90)
 print(adjusted_scale_df)
 formatted_scale = format_scale(adjusted_scale_df, "scaleDolMagVip")
 print(formatted_scale)
 
 
-# In[340]:
+# In[108]:
 
 
 #DolOstepenennykh
@@ -1217,23 +1046,29 @@ df_nonzero = df[df['DolOstepenennykhVip'] >= 0.002]
 analyze_distribution(df_nonzero, 'DolOstepenennykhVip')
 
 
-# In[342]:
+# In[116]:
 
 
 # Пример использования функции с вариантом №1 и 4 секциями (квартилями)
-scale_variant1_quartiles = build_scale_quartiles(df_nonzero['DolOstepenennykhVip'], num_sections=20,min_score=10, max_score=80)
+scale_variant1_quartiles = build_scale_quartiles(df_nonzero['DolOstepenennykhVip'], num_sections=20,min_score=10, max_score=90)
 print("Шкала с использованием квартилей (10 секции):")
 print("Процент выполнения плана (%); Баллы за выполнение;") 
 # Форматирование вывода
 output = "\n".join(f"{row['Процент выполнения плана (%)']}; {row['Баллы за выполнение']};" for _, row in scale_variant1_quartiles.iterrows())
 print(output)
-adjusted_scale_df = adjust_scores(scale_variant1_quartiles, min_score=10, max_score=80)
+adjusted_scale_df = adjust_scores(scale_variant1_quartiles, min_score=10, max_score=90)
 print(adjusted_scale_df)
 formatted_scale = format_scale(adjusted_scale_df, "scaleDolOstepenennykhVip")
 print(formatted_scale)
 
 
-# In[343]:
+# In[118]:
+
+
+plot_scores(adjusted_scale_df)
+
+
+# In[122]:
 
 
 #DolPPS200
@@ -1244,24 +1079,30 @@ df_nonzero = df[df['DolPPS200Vip'] >= 0.002]
 analyze_distribution(df_nonzero, 'DolPPS200Vip')
 
 
-# In[344]:
+# In[126]:
 
 
-scale_variant3 = build_scale(df_nonzero['DolPPS200Vip'],num_grades=10, min_score=10, max_score=80, scale_type='log')
+scale_variant3 = build_scale(df_nonzero['DolPPS200Vip'],num_grades=20, min_score=10, max_score=90, scale_type='log')
 print(scale_variant3)
 
 
-# In[345]:
+# In[130]:
 
 
-scale_variant3 = build_scale(df_nonzero['DolPPS200Vip'],num_grades=10, min_score=10, max_score=80, scale_type='log')
-adjusted_scale_df = adjust_scores(scale_variant3, min_score=10, max_score=80)
+scale_variant3 = build_scale(df_nonzero['DolPPS200Vip'],num_grades=20, min_score=10, max_score=90, scale_type='log')
+adjusted_scale_df = adjust_scores(scale_variant3, min_score=10, max_score=90)
 print(adjusted_scale_df)
 formatted_scale = format_scale(adjusted_scale_df, "scaleDolPPS200Vip")
 print(formatted_scale)
 
 
-# In[346]:
+# In[132]:
+
+
+plot_scores(adjusted_scale_df)
+
+
+# In[173]:
 
 
 #DolStorMag
@@ -1272,24 +1113,30 @@ df_nonzero = df[df['DolStorMagVip'] >= 0.002]
 analyze_distribution(df_nonzero, 'DolStorMagVip')
 
 
-# In[347]:
+# In[134]:
 
 
-scale_variant3 = build_scale(df_nonzero['DolStorMagVip'],num_grades=20, min_score=10, max_score=90, scale_type='log')
+scale_variant3 = build_scale(df_nonzero['DolStorMagVip'],num_grades=40, min_score=10, max_score=100, scale_type='log')
 print(scale_variant3)
 
 
-# In[348]:
+# In[136]:
 
 
-scale_variant3 = build_scale(df_nonzero['DolStorMagVip'],num_grades=20, min_score=10, max_score=90, scale_type='log')
-adjusted_scale_df = adjust_scores(scale_variant3, min_score=10, max_score=90)
+scale_variant3 = build_scale(df_nonzero['DolStorMagVip'],num_grades=40, min_score=10, max_score=100, scale_type='log')
+adjusted_scale_df = adjust_scores(scale_variant3, min_score=10, max_score=100)
 print(adjusted_scale_df)
 formatted_scale = format_scale(adjusted_scale_df, "scaleDolStorMagVip")
 print(formatted_scale)
 
 
-# In[354]:
+# In[138]:
+
+
+plot_scores(adjusted_scale_df)
+
+
+# In[140]:
 
 
 #DolCelevikov
@@ -1300,24 +1147,30 @@ df_nonzero = df[df['DolCelevikovVip'] >= 0.002]
 analyze_distribution(df_nonzero, 'DolCelevikovVip')
 
 
-# In[358]:
+# In[142]:
 
 
 # Пример использования функции с вариантом №1 и 4 секциями (квартилями)
-scale_variant1_quartiles = build_scale_quartiles(df_nonzero['DolCelevikovVip'], num_sections=10,min_score=10, max_score=80)
+scale_variant1_quartiles = build_scale_quartiles(df_nonzero['DolCelevikovVip'], num_sections=20,min_score=10, max_score=90)
 
 print("Шкала с использованием квартилей (10 секции):")
 print("Процент выполнения плана (%); Баллы за выполнение;") 
 # Форматирование вывода
 output = "\n".join(f"{row['Процент выполнения плана (%)']}; {row['Баллы за выполнение']};" for _, row in scale_variant1_quartiles.iterrows())
 print(output)
-adjusted_scale_df = adjust_scores(scale_variant1_quartiles, min_score=10, max_score=80)
+adjusted_scale_df = adjust_scores(scale_variant1_quartiles, min_score=10, max_score=90)
 print(adjusted_scale_df)
 formatted_scale = format_scale(adjusted_scale_df, "scaleDolCelevikovVip")
 print(formatted_scale)
 
 
-# In[359]:
+# In[144]:
+
+
+plot_scores(adjusted_scale_df)
+
+
+# In[146]:
 
 
 #Zashchity
@@ -1328,31 +1181,37 @@ df_nonzero = df[df['ZashchityVip'] >= 0.002]
 analyze_distribution(df_nonzero, 'ZashchityVip')
 
 
-# In[360]:
+# In[148]:
 
 
 kol_inostr_prepod_vip = df_nonzero['ZashchityVip'].tolist()
 kol_inostr_prepod_vip_unique = list(set(kol_inostr_prepod_vip))
 
 
-# In[362]:
+# In[152]:
 
 
-scale_variant3 = build_scale(df_nonzero['ZashchityVip'],num_grades=10, min_score=10, max_score=80, scale_type='log')
+scale_variant3 = build_scale(df_nonzero['ZashchityVip'],num_grades=20, min_score=10, max_score=90, scale_type='log')
 print(scale_variant3)
 
 
-# In[363]:
+# In[154]:
 
 
-scale_variant3 = build_scale(df_nonzero['ZashchityVip'],num_grades=10, min_score=10, max_score=80, scale_type='log')
-adjusted_scale_df = adjust_scores(scale_variant3, min_score=10, max_score=80)
+scale_variant3 = build_scale(df_nonzero['ZashchityVip'],num_grades=20, min_score=10, max_score=90, scale_type='log')
+adjusted_scale_df = adjust_scores(scale_variant3, min_score=10, max_score=90)
 print(adjusted_scale_df)
 formatted_scale = format_scale(adjusted_scale_df, "scaleZashchityVip")
 print(formatted_scale)
 
 
-# In[385]:
+# In[156]:
+
+
+plot_scores(adjusted_scale_df)
+
+
+# In[158]:
 
 
 #DolPPS200
@@ -1362,23 +1221,29 @@ df_nonzero = df[df['DolPPS200Vip'] >= 0.002]
 analyze_distribution(df_nonzero, 'DolPPS200Vip')
 
 
-# In[388]:
+# In[160]:
 
 
 # Пример использования функции с вариантом №1 и 4 секциями (квартилями)
-scale_variant1_quartiles = build_scale_quartiles(df_nonzero['DolPPS200Vip'], num_sections=10,min_score=30, max_score=80)
+scale_variant1_quartiles = build_scale_quartiles(df_nonzero['DolPPS200Vip'], num_sections=20,min_score=10, max_score=90)
 print("Шкала с использованием квартилей (10 секции):")
 print("Процент выполнения плана (%); Баллы за выполнение;") 
 # Форматирование вывода
 output = "\n".join(f"{row['Процент выполнения плана (%)']}; {row['Баллы за выполнение']};" for _, row in scale_variant1_quartiles.iterrows())
 print(output)
-adjusted_scale_df = adjust_scores(scale_variant3, min_score=10, max_score=80)
+adjusted_scale_df = adjust_scores(scale_variant3, min_score=10, max_score=90)
 print(adjusted_scale_df)
 formatted_scale = format_scale(adjusted_scale_df, "scaleDolPPS200Vip")
 print(formatted_scale)
 
 
-# In[366]:
+# In[162]:
+
+
+plot_scores(adjusted_scale_df)
+
+
+# In[164]:
 
 
 #ZayavAktiv
@@ -1388,7 +1253,7 @@ df_nonzero = df[df['ZayavAktivVip'] >= 0.002]
 analyze_distribution(df_nonzero, 'ZayavAktivVip')
 
 
-# In[367]:
+# In[166]:
 
 
 # Пример использования функции с вариантом №1 и 4 секциями (квартилями)
@@ -1400,7 +1265,7 @@ output = "\n".join(f"{row['Процент выполнения плана (%)']}
 print(output)
 
 
-# In[368]:
+# In[168]:
 
 
 adjusted_scale_df = adjust_scores(scale_variant1_quartiles, min_score=10, max_score=90)
@@ -1409,7 +1274,13 @@ formatted_scale = format_scale(adjusted_scale_df, "scaleZayavAktivVip")
 print(formatted_scale)
 
 
-# In[369]:
+# In[170]:
+
+
+plot_scores(adjusted_scale_df)
+
+
+# In[172]:
 
 
 #Innovacii
@@ -1419,24 +1290,30 @@ df_nonzero = df[df['InnovaciiVip'] >= 0.002]
 analyze_distribution(df_nonzero, 'InnovaciiVip')
 
 
-# In[370]:
+# In[174]:
 
 
-scale_variant3 = build_scale(df_nonzero['InnovaciiVip'],num_grades=20, min_score=10, max_score=90, scale_type='log')
+scale_variant3 = build_scale(df_nonzero['InnovaciiVip'],num_grades=40, min_score=10, max_score=100, scale_type='log')
 print(scale_variant3)
 
 
-# In[371]:
+# In[180]:
 
 
-scale_variant3 = build_scale(df_nonzero['InnovaciiVip'],num_grades=20, min_score=10, max_score=90, scale_type='log')
-adjusted_scale_df = adjust_scores(scale_variant3, min_score=10, max_score=80)
+scale_variant3 = build_scale(df_nonzero['InnovaciiVip'],num_grades=40, min_score=10, max_score=100, scale_type='log')
+adjusted_scale_df = adjust_scores(scale_variant3, min_score=10, max_score=100)
 print(adjusted_scale_df)
 formatted_scale = format_scale(adjusted_scale_df, "scaleInnovaciiVip")
 print(formatted_scale)
 
 
-# In[372]:
+# In[182]:
+
+
+plot_scores(adjusted_scale_df)
+
+
+# In[184]:
 
 
 #KolInostrPrepod
@@ -1447,37 +1324,43 @@ df_nonzero = df[df['KolInostrPrepodVip'] >= 0.002]
 analyze_distribution(df_nonzero, 'KolInostrPrepodVip')
 
 
-# In[180]:
+# In[186]:
 
 
 kol_inostr_prepod_vip = df_nonzero['KolInostrPrepodVip'].tolist()
 kol_inostr_prepod_vip_unique = list(set(kol_inostr_prepod_vip))
 
 
-# In[181]:
+# In[188]:
 
 
 print(kol_inostr_prepod_vip_unique)
 
 
-# In[373]:
+# In[190]:
 
 
-scale_variant3 = build_scale(df_nonzero['KolInostrPrepodVip'],num_grades=20, min_score=10, max_score=90, scale_type='log')
+scale_variant3 = build_scale(df_nonzero['KolInostrPrepodVip'],num_grades=40, min_score=10, max_score=100, scale_type='log')
 print(scale_variant3)
 
 
-# In[374]:
+# In[192]:
 
 
-scale_variant3 = build_scale(df_nonzero['KolInostrPrepodVip'],num_grades=20, min_score=10, max_score=90, scale_type='log')
-adjusted_scale_df = adjust_scores(scale_variant3, min_score=10, max_score=90)
+scale_variant3 = build_scale(df_nonzero['KolInostrPrepodVip'],num_grades=40, min_score=10, max_score=100, scale_type='log')
+adjusted_scale_df = adjust_scores(scale_variant3, min_score=10, max_score=100)
 print(adjusted_scale_df)
 formatted_scale = format_scale(adjusted_scale_df, "scaleKolInostrPrepodVip")
 print(formatted_scale)
 
 
-# In[375]:
+# In[194]:
+
+
+plot_scores(adjusted_scale_df)
+
+
+# In[196]:
 
 
 #KolPublik
@@ -1487,24 +1370,30 @@ df_nonzero = df[df['KolPublikVip'] >= 0.002]
 analyze_distribution(df_nonzero, 'KolPublikVip')
 
 
-# In[376]:
+# In[198]:
 
 
-scale_variant3 = build_scale(df_nonzero['KolPublikVip'],num_grades=20, min_score=10, max_score=90, scale_type='log')
+scale_variant3 = build_scale(df_nonzero['KolPublikVip'],num_grades=40, min_score=10, max_score=100, scale_type='log')
 print(scale_variant3)
 
 
-# In[377]:
+# In[200]:
 
 
-scale_variant3 = build_scale(df_nonzero['KolPublikVip'],num_grades=20, min_score=10, max_score=90, scale_type='log')
-adjusted_scale_df = adjust_scores(scale_variant3, min_score=10, max_score=80)
+scale_variant3 = build_scale(df_nonzero['KolPublikVip'],num_grades=40, min_score=10, max_score=100, scale_type='log')
+adjusted_scale_df = adjust_scores(scale_variant3, min_score=10, max_score=100)
 print(adjusted_scale_df)
 formatted_scale = format_scale(adjusted_scale_df, "scaleKolPublikVip")
 print(formatted_scale)
 
 
-# In[378]:
+# In[202]:
+
+
+plot_scores(adjusted_scale_df)
+
+
+# In[204]:
 
 
 #ObemNIOKR
@@ -1514,24 +1403,30 @@ df_nonzero = df[df['ObemNIOKRVip'] >= 0.002]
 analyze_distribution(df_nonzero, 'ObemNIOKRVip')
 
 
-# In[379]:
+# In[206]:
 
 
-scale_variant3 = build_scale(df_nonzero['ObemNIOKRVip'],num_grades=20, min_score=10, max_score=90, scale_type='log')
+scale_variant3 = build_scale(df_nonzero['ObemNIOKRVip'],num_grades=40, min_score=10, max_score=100, scale_type='log')
 print(scale_variant3)
 
 
-# In[380]:
+# In[208]:
 
 
-scale_variant3 = build_scale(df_nonzero['ObemNIOKRVip'],num_grades=20, min_score=10, max_score=90, scale_type='log')
-adjusted_scale_df = adjust_scores(scale_variant3, min_score=10, max_score=90)
+scale_variant3 = build_scale(df_nonzero['ObemNIOKRVip'],num_grades=40, min_score=10, max_score=100, scale_type='log')
+adjusted_scale_df = adjust_scores(scale_variant3, min_score=10, max_score=100)
 print(adjusted_scale_df)
 formatted_scale = format_scale(adjusted_scale_df, "scaleObemNIOKRVip")
 print(formatted_scale)
 
 
-# In[383]:
+# In[210]:
+
+
+plot_scores(adjusted_scale_df)
+
+
+# In[212]:
 
 
 #ObemPOU
@@ -1541,24 +1436,30 @@ df_nonzero = df[df['ObemPOUVip'] >= 0.002]
 analyze_distribution(df_nonzero, 'ObemPOUVip')
 
 
-# In[382]:
+# In[214]:
 
 
-scale_variant3 = build_scale(df_nonzero['ObemPOUVip'],num_grades=20, min_score=10, max_score=90, scale_type='log')
+scale_variant3 = build_scale(df_nonzero['ObemPOUVip'],num_grades=40, min_score=10, max_score=100, scale_type='log')
 print(scale_variant3)
 
 
-# In[384]:
+# In[216]:
 
 
-scale_variant3 = build_scale(df_nonzero['ObemPOUVip'],num_grades=20, min_score=10, max_score=90, scale_type='linear')
+scale_variant3 = build_scale(df_nonzero['ObemPOUVip'],num_grades=40, min_score=10, max_score=100, scale_type='linear')
 adjusted_scale_df = adjust_scores(scale_variant3, min_score=10, max_score=90)
 print(adjusted_scale_df)
 formatted_scale = format_scale(adjusted_scale_df, "scaleObemPOUVip")
 print(formatted_scale)
 
 
-# In[132]:
+# In[218]:
+
+
+plot_scores(adjusted_scale_df)
+
+
+# In[220]:
 
 
 #PodgotovkaEncikl
@@ -1568,28 +1469,53 @@ df_nonzero = df[df['DolMolNPRVip'] >= 0.002]
 analyze_distribution(df_nonzero, 'DolMolNPRVip')
 
 
-# In[133]:
+# In[222]:
 
 
-scale_variant3 = build_scale(df_nonzero['DolMolNPRVip'],num_grades=10, min_score=10, max_score=80, scale_type='log')
+scale_variant3 = build_scale(df_nonzero['DolMolNPRVip'],num_grades=40, min_score=10, max_score=100, scale_type='log')
 print(scale_variant3)
 
 
-# In[135]:
+# In[ ]:
+
+
+
+
+
+# In[224]:
 
 
 df_nonzero = df[df['DolMolNPRVip'] >= 0.002]
 analyze_distribution(df_nonzero, 'DolMolNPRVip')
 
 
-# In[134]:
+# In[226]:
 
 
-scale_variant3 = build_scale(df_nonzero['DolMolNPRVip'],num_grades=10, min_score=10, max_score=80, scale_type='log')
-adjusted_scale_df = adjust_scores(scale_variant3, min_score=10, max_score=80)
+scale_variant3 = build_scale(df_nonzero['DolMolNPRVip'],num_grades=40, min_score=10, max_score=100, scale_type='log')
+adjusted_scale_df = adjust_scores(scale_variant3, min_score=10, max_score=100)
 print(adjusted_scale_df)
 formatted_scale = format_scale(adjusted_scale_df, "scaleDolMolNPRVip")
 print(formatted_scale)
+
+
+# In[228]:
+
+
+plot_scores(adjusted_scale_df)
+
+
+# In[ ]:
+
+
+df_nonzero = df[df['DolMolNPRVip'] >= 0.002]
+analyze_distribution(df_nonzero, 'DolMolNPRVip')
+
+
+# In[251]:
+
+
+df['PodgotovkaEnciklVip']
 
 
 # In[ ]:

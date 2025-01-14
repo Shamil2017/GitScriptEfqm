@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[60]:
+# In[1]:
 
 
 #IndicatorCode	IndicatorName
@@ -31,7 +31,7 @@
 #Ц27	РИД
 
 
-# In[61]:
+# In[3]:
 
 
 import pyodbc 
@@ -43,7 +43,7 @@ import math
     
 
 
-# In[62]:
+# In[5]:
 
 
 #scaleEgeVip = [
@@ -61,14 +61,15 @@ import math
 
 scaleEgeVip = [
     (109.32, 80.000000),  # Если значение больше 109.32%, то 80.0 баллов
-    (100.79, 65.000000),  # Если значение в диапазоне 100.79% – 109.32%, то 65.0 баллов
-    (98.91, 50.000000),  # Если значение в диапазоне 98.91% – 100.79%, то 50.0 баллов
-    (94.49, 50.000000),  # Если значение в диапазоне 94.49% – 98.91%, то 50.0 баллов
-    (91.31, 50.000000),  # Если значение в диапазоне 91.31% – 94.49%, то 50.0 баллов
-    (90.09, 50.000000),  # Если значение в диапазоне 90.09% – 91.31%, то 50.0 баллов
-    (88.38, 50.000000),  # Если значение в диапазоне 88.38% – 90.09%, то 50.0 баллов
-    (87.02, 50.000000),  # Если значение в диапазоне 87.02% – 88.38%, то 50.0 баллов
-    (85.44, 50.000000),  # Если значение в диапазоне 85.44% – 87.02%, то 50.0 баллов
+    (100.79, 75.000000),  # Если значение в диапазоне 100.79% – 109.32%, то 65.0 баллов
+    (98.91, 70.000000),  # Если значение в диапазоне 98.91% – 100.79%, то 50.0 баллов
+    (94.49, 70.000000),  # Если значение в диапазоне 94.49% – 98.91%, то 50.0 баллов
+    (91.31, 70.000000),  # Если значение в диапазоне 91.31% – 94.49%, то 50.0 баллов
+    (90.09, 70.000000),  # Если значение в диапазоне 90.09% – 91.31%, то 50.0 баллов
+    (88.38, 65.000000),  # Если значение в диапазоне 88.38% – 90.09%, то 50.0 баллов
+    (87.02, 65.000000),  # Если значение в диапазоне 87.02% – 88.38%, то 50.0 баллов
+    (85.44, 65.000000),  # Если значение в диапазоне 85.44% – 87.02%, то 50.0 баллов
+    (50,    65.000000),  # Если значение в диапазоне 85.44% – 87.02%, то 50.0 баллов
     (0, 10)        # Если значение меньше или равно 85.44%, то 10 баллов
 ]
 
@@ -342,7 +343,7 @@ scaleDolMolNPRVip = [
 ]
 
 
-# In[63]:
+# In[7]:
 
 
 # Функция для расчета баллов на основе шкалы
@@ -363,7 +364,7 @@ def CalcBallVipolnenia(value, scale):
 #print(f"Баллы за выполнение: {score}")
 
 
-# In[64]:
+# In[9]:
 
 
 def CalcBallCompare(E_kaf, E_univ, sigma):
@@ -380,7 +381,7 @@ def CalcBallCompare(E_kaf, E_univ, sigma):
     return B_compare
 
 
-# In[65]:
+# In[11]:
 
 
 def calculate_final_score(B_vyp, B_srav, w_vyp=0.6, w_srav=0.4):
@@ -399,7 +400,7 @@ def calculate_final_score(B_vyp, B_srav, w_vyp=0.6, w_srav=0.4):
     return B_itog
 
 
-# In[66]:
+# In[13]:
 
 
 def get_sredBallFinal_values(df, kafedra_column, sredBallVipolnenia_column, sredBallCompare_column, sredBallFinal_column):
@@ -441,7 +442,7 @@ def get_sredBallFinal_values(df, kafedra_column, sredBallVipolnenia_column, sred
 
 
 
-# In[67]:
+# In[16]:
 
 
 # Сохраняем DataFrame в CSV файл
@@ -454,7 +455,7 @@ df = pd.DataFrame()
 df = pd.read_csv('dannie.csv')
 
 
-# In[9]:
+# In[22]:
 
 
 # Загрузка данных из CSV файла средних по университету
@@ -466,20 +467,20 @@ dictSred = dfSred.set_index('IndicatorCode')['SredneePoUniver'].to_dict()
 print(dictSred)
 
 
-# In[68]:
+# In[24]:
 
 
 df
 
 
-# In[69]:
+# In[26]:
 
 
 columns_list = df.columns.tolist()
 print(columns_list)
 
 
-# In[72]:
+# In[28]:
 
 
 # Фильтрация строк, где кафедра равна 'РТС'
@@ -495,14 +496,14 @@ filtered_df.to_csv('filtered_data.csv', index=False, encoding='utf-8')
 
 
 
-# In[10]:
+# In[31]:
 
 
 # Преобразование значений в словаре dictSred, заменяя запятую на точку перед преобразованием в float
 dictSred = {key: float(value.replace(',', '.')) for key, value in dictSred.items()}
 
 
-# In[11]:
+# In[33]:
 
 
 def process_data(EGEFact, EGEVip, EGEFactVipolnenia, df, scaleEgeVip, 
@@ -547,7 +548,7 @@ def process_data(EGEFact, EGEVip, EGEFactVipolnenia, df, scaleEgeVip,
     return df
 
 
-# In[12]:
+# In[35]:
 
 
 def process_data0(EGEFact, EGEVip, EGEFactVipolnenia, df, scaleEgeVip, 
@@ -591,7 +592,7 @@ def process_data0(EGEFact, EGEVip, EGEFactVipolnenia, df, scaleEgeVip,
     return df
 
 
-# In[13]:
+# In[37]:
 
 
 def calculate_krit6(row, columns):
@@ -609,13 +610,13 @@ def calculate_krit6(row, columns):
     return round(avg_value / 5) * 5
 
 
-# In[14]:
+# In[39]:
 
 
 print(list(df.columns))
 
 
-# In[15]:
+# In[41]:
 
 
 #По всем показателям
